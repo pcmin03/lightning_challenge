@@ -1,0 +1,9 @@
+_target_: src.models.mri_module.MRIModule
+lr: 0.001
+weight_decay: 0.0005
+
+net:
+  _target_: src.models.components.segmentation.Seg
+  decoder : unet
+  background: 'efficientnet-b0'
+  num_classes: 3

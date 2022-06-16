@@ -79,7 +79,8 @@ def train(config: DictConfig) -> Optional[float]:
         callbacks=callbacks,
         logger=logger,
     )
-
+    
+    # print(config,'12309812512-0391-2039')
     # Train the model
     if config.get("train"):
         log.info("Starting training!")
