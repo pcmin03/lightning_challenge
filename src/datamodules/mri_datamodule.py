@@ -108,7 +108,6 @@ class MRIDataModule(LightningDataModule):
         # load datasets only if they're not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
             self.data_train = BuildDataset(train_df,True,transforms=data_transforms['train'])
-            # self.data_train = SigleCells(x_valid,y_valid,test_transforms)
             self.data_val = BuildDataset(valid_df,True,transforms=data_transforms['valid'])
             self.data_test = BuildDataset(test_df,True,transforms=data_transforms['valid'])
             # dataset = ConcatDataset(datasets=[trainset, testset])

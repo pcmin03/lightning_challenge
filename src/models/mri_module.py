@@ -6,9 +6,10 @@ from torchmetrics import MaxMetric
 from torchmetrics.classification.accuracy import Accuracy
 
 # from src.models.components.segmentation import Seg
-
+import numpy as np 
 import segmentation_models_pytorch as smp
 
+from pathlib import Path
 class MRIModule(LightningModule):
     """Example of LightningModule for MNIST classification.
 
@@ -45,6 +46,7 @@ class MRIModule(LightningModule):
         self.train_acc = Accuracy()
         self.val_acc = Accuracy()
         self.test_acc = Accuracy()
+        self.best_dice = 0 
 
         # for logging best so far validation accuracy
         self.val_acc_best = MaxMetric()
@@ -54,6 +56,8 @@ class MRIModule(LightningModule):
         self.BCELoss     = smp.losses.SoftBCEWithLogitsLoss()
         self.LovaszLoss  = smp.losses.LovaszLoss(mode='multilabel', per_image=False)
         self.TverskyLoss = smp.losses.TverskyLoss(mode='multilabel', log_loss=False)
+
+        self.model_save_dir = Path('checkpoint')
 
     def dice_coef(self,y_true, y_pred, thr=0.5, dim=(2,3), epsilon=0.001):
         y_true = y_true.to(torch.float32)
@@ -79,6 +83,20 @@ class MRIModule(LightningModule):
 
     def forward(self, x: torch.Tensor):
         return self.net(x)
+    
+    def get_save_model_pth_fname(self):
+        
+        return self.model_save_dir / f'epoch{self.current_epoch:03d}.pth'
+
+    def save_model_pth(self):
+        # if self.trainer.is_global_zero:
+        fname = self.get_save_model_pth_fname()
+        parent = Path(fname).parent
+        parent.mkdir(exist_ok=True)
+        if self.net.training:
+            self.net.eval()
+        print(fname)
+        torch.save(self.net.state_dict(), fname.resolve())
 
     def on_train_start(self):
         # by default lightning executes validation step sanity checks before training starts,
@@ -124,9 +142,18 @@ class MRIModule(LightningModule):
         self.log("val/dic_score", dic_score, on_step=False, on_epoch=True, prog_bar=True)
         self.log("val/iou_score", iou_score, on_step=False, on_epoch=True, prog_bar=True)
 
-        return {"loss": loss,"dic_score":dic_score,"iou_score":iou_score}
+        # return {"loss": loss,"dic_score":dic_score,"iou_score":iou_score}
+        return dic_score
+        
 
-    def validation_epoch_end(self, outputs: List[Any]):
+    def validation_epoch_end(self, outputs):
+        
+        dic_score = np.mean(np.array(outputs))  # get val accuracy from current epoch
+        
+        if self.best_dice < dic_score: 
+            self.save_model_pth()
+            self.best_dice = dic_score
+
         pass
         # acc = self.val_acc.compute()  # get val accuracy from current epoch
         # self.val_acc_best.update(acc)
@@ -134,8 +161,6 @@ class MRIModule(LightningModule):
 
     def test_step(self, batch: Any, batch_idx: int):
         loss, preds, mask = self.step(batch)
-
-        self.log()
 
         # log test metrics
         dic_score = self.dice_coef(mask,preds).item()
