@@ -78,10 +78,11 @@ class MRIDataModule(LightningDataModule):
         """
         
         df = pd.read_csv(self.data_dir)
-        
-        train_df = df[df['fold'] != self.fold]
-        valid_df = df[df['fold'] == self.fold]
         test_df = df[df['test'] == 1]
+        not_test_df = df[df['test'] != 1]
+        train_df = not_test_df[not_test_df['fold'] != self.fold]
+        valid_df = not_test_df[not_test_df['fold'] == self.fold]
+        
 
         data_transforms = {
             "train": A.Compose([

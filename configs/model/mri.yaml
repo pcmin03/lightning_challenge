@@ -5,5 +5,6 @@ weight_decay: 0.0005
 net:
   _target_: src.models.components.segmentation.Seg
   decoder : unet
-  background: 'efficientnet-b0'
-  num_classes: 3
+  encoder_name: 'efficientnet-b0'
+  encoder_weights: 'imagenet'
+  classes: 3

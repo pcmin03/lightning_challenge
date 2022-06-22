@@ -6,18 +6,33 @@ class Seg(nn.Module):
     def __init__(
         self,
         decoder: str = 'unet',
-        background: str = 'efficientnet-b0',
-        num_classes: int = 3,
+        encoder_name: str = 'efficientnet-b0',
+        encoder_weights: str = 'imagenet'
+        classes: int = 3,
         
     ):
         super().__init__()
-        self.model = smp.Unet(
-            encoder_name=background,      # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
-            encoder_weights="imagenet",     # use `imagenet` pre-trained weights for encoder initialization
-            in_channels=3,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
-            classes=num_classes,        # model output channels (number of classes in your dataset)
-            activation=None,
-        )
+         if decoder.lower() == 'unet':
+            self.model = smp.Unet(encoder_name=encoder_name, encoder_weights=encoder_weights,
+                            in_channels=in_channels, classes=classes, activation=None)
+        elif decoder.lower() == 'fpn':
+            self.model = smp.FPN(encoder_name=encoder_name, encoder_weights=encoder_weights,
+                            in_channels=in_channels, classes=classes, activation=None)
+        elif decoder.lower() == 'unetplusplus':
+            self.model = smp.UnetPlusPlus(encoder_name=encoder_name, encoder_weights=encoder_weights,
+                                    in_channels=in_channels, classes=classes, activation=None)
+        elif decoder.lower() == 'linknet':
+            self.model = smp.Linknet(encoder_name=encoder_name, encoder_weights=encoder_weights,
+                                in_channels=in_channels, classes=classes, activation=None)
+        elif decoder.lower() == 'deeplabv3':
+            self.model = smp.DeepLabV3(encoder_name=encoder_name, encoder_weights=encoder_weights,
+                                in_channels=in_channels, classes=classes, activation=None)
+        elif decoder.lower() == 'deeplabv3plus':
+            self.model = smp.DeepLabV3Plus(encoder_name=encoder_name, encoder_weights=encoder_weights,
+                                    in_channels=in_channels, classes=classes, activation=None)
+        elif decoder.lower() == 'pspnet':
+            self.model = smp.PSPNet(encoder_name=encoder_name, encoder_weights=encoder_weights,
+                            in_channels=in_channels, classes=classes, activation=None)
         
         
     def forward(self, x):

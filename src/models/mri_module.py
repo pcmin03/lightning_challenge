@@ -4,7 +4,7 @@ import torch
 from pytorch_lightning import LightningModule
 from torchmetrics import MaxMetric
 from torchmetrics.classification.accuracy import Accuracy
-
+from torchmetrics import Dice
 # from src.models.components.segmentation import Seg
 import numpy as np 
 import segmentation_models_pytorch as smp
@@ -43,10 +43,10 @@ class MRIModule(LightningModule):
         self.sigmoid = torch.nn.Sigmoid()
         # use separate metric instance for train, val and test step
         # to ensure a proper reduction over the epoch
-        self.train_acc = Accuracy()
-        self.val_acc = Accuracy()
-        self.test_acc = Accuracy()
-        self.best_dice = 0 
+        self.train_dice = Dice(num_classes=1,average='none')
+        self.val_dice = Dice(num_classes=1,average='none')
+        self.test_dice = Dice(num_classes=1,average='none')
+        
 
         # for logging best so far validation accuracy
         self.val_acc_best = MaxMetric()
@@ -58,7 +58,7 @@ class MRIModule(LightningModule):
         self.TverskyLoss = smp.losses.TverskyLoss(mode='multilabel', log_loss=False)
 
         self.model_save_dir = Path('checkpoint')
-
+        self.best_dice = 0 
     def dice_coef(self,y_true, y_pred, thr=0.5, dim=(2,3), epsilon=0.001):
         y_true = y_true.to(torch.float32)
         y_pred = (y_pred>thr).to(torch.float32)
@@ -116,6 +116,8 @@ class MRIModule(LightningModule):
         loss, preds, mask = self.step(batch)
 
         # log train metrics
+        # dic_score = self.train_dice(preds.flatten(),mask.flatten().int())
+
         dic_score = self.dice_coef(mask,preds).item()
         iou_score = self.iou_coef(mask,preds).item()
         
@@ -136,6 +138,8 @@ class MRIModule(LightningModule):
 
         # log val metrics
         dic_score = self.dice_coef(mask,preds).item()
+        # dic_score = self.val_dice(preds.flatten(),mask.flatten().int())
+        
         iou_score = self.iou_coef(mask,preds).item()
         
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
@@ -164,6 +168,7 @@ class MRIModule(LightningModule):
 
         # log test metrics
         dic_score = self.dice_coef(mask,preds).item()
+        # dic_score = self.test_dice(preds.flatten(),mask.flatten().int())
         iou_score = self.iou_coef(mask,preds).item()
         self.log("test/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
         self.log("test/dic_score", dic_score, on_step=False, on_epoch=True, prog_bar=True)
@@ -176,9 +181,9 @@ class MRIModule(LightningModule):
 
     def on_epoch_end(self):
         # reset metrics at the end of every epoch
-        self.train_acc.reset()
-        self.test_acc.reset()
-        self.val_acc.reset()
+        self.train_dice.reset()
+        self.test_dice.reset()
+        self.val_dice.reset()
 
     def configure_optimizers(self):
         """Choose what optimizers and learning-rate schedulers to use in your optimization.
