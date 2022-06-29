@@ -15,7 +15,7 @@ import albumentations as A
 from albumentations.pytorch.transforms import ToTensorV2,ToTensor
 
 import pandas as pd
-
+import cv2
 class MRIDataModule(LightningDataModule):
     """Example of LightningDataModule for MNIST dataset.
 
@@ -86,9 +86,9 @@ class MRIDataModule(LightningDataModule):
 
         data_transforms = {
             "train": A.Compose([
-        #         A.Resize(*CFG.img_size, interpolation=cv2.INTER_NEAREST),
+                A.Resize(320,320),
                 A.HorizontalFlip(p=0.5),
-        #         A.VerticalFlip(p=0.5),
+                A.VerticalFlip(p=0.5),
                 A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.05, rotate_limit=10, p=0.5),
                 A.OneOf([
                     A.GridDistortion(num_steps=5, distort_limit=0.05, p=1.0),
@@ -101,8 +101,8 @@ class MRIDataModule(LightningDataModule):
                 
             
             "valid": A.Compose([
-                ToTensorV2()
-        #         A.Resize(*CFG.img_size, interpolation=cv2.INTER_NEAREST),
+                A.Resize(320,320),
+                ToTensorV2(),
                 ], p=1.0)
         }
         

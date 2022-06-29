@@ -10,6 +10,9 @@ import numpy as np
 import segmentation_models_pytorch as smp
 
 from pathlib import Path
+from torchmetrics import MetricCollection
+from ..utils.metrics import DiceMetric,IOUMetric,CompetitionMetric
+
 class MRIModule(LightningModule):
     """Example of LightningModule for MNIST classification.
 
@@ -27,8 +30,7 @@ class MRIModule(LightningModule):
     def __init__(
         self,
         net: torch.nn.Module,
-        lr: float = 0.001,
-        weight_decay: float = 0.0005,
+        configure: torch.optim
     ):
         super().__init__()
 
@@ -43,9 +45,9 @@ class MRIModule(LightningModule):
         self.sigmoid = torch.nn.Sigmoid()
         # use separate metric instance for train, val and test step
         # to ensure a proper reduction over the epoch
-        self.train_dice = Dice(num_classes=1,average='none')
-        self.val_dice = Dice(num_classes=1,average='none')
-        self.test_dice = Dice(num_classes=1,average='none')
+        self.train_dice = Dice(num_classes=3,average='macro')
+        self.val_dice = Dice(num_classes=3,average='macro')
+        self.test_dice = Dice(num_classes=3,average='macro')
         
 
         # for logging best so far validation accuracy
@@ -53,31 +55,20 @@ class MRIModule(LightningModule):
 
         self.JaccardLoss = smp.losses.JaccardLoss(mode='multilabel')
         self.DiceLoss    = smp.losses.DiceLoss(mode='multilabel')
-        self.BCELoss     = smp.losses.SoftBCEWithLogitsLoss()
+        self.BCELoss     = smp.losses.SoftBCEWithLogitsLoss(reduction='none')
         self.LovaszLoss  = smp.losses.LovaszLoss(mode='multilabel', per_image=False)
         self.TverskyLoss = smp.losses.TverskyLoss(mode='multilabel', log_loss=False)
 
         self.model_save_dir = Path('checkpoint')
         self.best_dice = 0 
-    def dice_coef(self,y_true, y_pred, thr=0.5, dim=(2,3), epsilon=0.001):
-        y_true = y_true.to(torch.float32)
-        y_pred = (y_pred>thr).to(torch.float32)
-        inter = (y_true*y_pred).sum(dim=dim)
-        den = y_true.sum(dim=dim) + y_pred.sum(dim=dim)
-        dice = ((2*inter+epsilon)/(den+epsilon)).mean(dim=(1,0))
-        return dice
 
-    def iou_coef(self,y_true, y_pred, thr=0.5, dim=(2,3), epsilon=0.001):
-        y_true = y_true.to(torch.float32)
-        y_pred = (y_pred>thr).to(torch.float32)
-        inter = (y_true*y_pred).sum(dim=dim)
-        union = (y_true + y_pred - y_true*y_pred).sum(dim=dim)
-        iou = ((inter+epsilon)/(union+epsilon)).mean(dim=(1,0))
-        return iou
-
+        self.metrics = self._init_metrics()
+        self.class_weight = [0.59,0.67,0.75]
+    
     def criterion(self,y_pred, y_true):
-        
-        loss = 0.5*self.DiceLoss(y_pred, y_true) + 0.5*self.BCELoss(y_pred, y_true)
+        bceloss = self.BCELoss(y_pred, y_true).mean(dim=(0,2,3))
+        bceloss = bceloss * torch.as_tensor(self.class_weight, device=torch.device('cuda'))
+        loss = 0.3*self.DiceLoss(y_pred, y_true) + 0.3*self.TverskyLoss(y_pred, y_true) + 0.3*bceloss.mean()
         return loss
         
 
@@ -97,6 +88,20 @@ class MRIModule(LightningModule):
             self.net.eval()
         print(fname)
         torch.save(self.net.state_dict(), fname.resolve())
+    
+    def _init_metrics(self):
+        
+        train_metrics = MetricCollection({"train_dice": DiceMetric(), "train_iou": IOUMetric()})
+        val_metrics = MetricCollection({"val_dice": DiceMetric(), "val_iou": IOUMetric(),"val_comp_metric": CompetitionMetric()})
+        test_metrics = MetricCollection({"test_comp_metric": CompetitionMetric()})
+
+        return torch.nn.ModuleDict(
+            {
+                "train_metrics": train_metrics,
+                "val_metrics": val_metrics,
+                "test_metrics": test_metrics,
+            }
+        )
 
     def on_train_start(self):
         # by default lightning executes validation step sanity checks before training starts,
@@ -116,65 +121,53 @@ class MRIModule(LightningModule):
         loss, preds, mask = self.step(batch)
 
         # log train metrics
-        # dic_score = self.train_dice(preds.flatten(),mask.flatten().int())
-
-        dic_score = self.dice_coef(mask,preds).item()
-        iou_score = self.iou_coef(mask,preds).item()
         
+        metrics = self.metrics[f"train_metrics"](preds,mask)
+        
+        class_dice = {f'dice_score_{num}':i for num,i in enumerate(metrics['train_dice'])}
+        self.log_dict(class_dice, on_step=False, on_epoch=True, prog_bar=True)
         self.log("train/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
-        self.log("train/dic_score", dic_score, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("train/iou_score", iou_score, on_step=False, on_epoch=True, prog_bar=True)
-
-        # we can return here dict with any tensors
-        # and then read it in some callback or in `training_epoch_end()` below
-        # remember to always return loss from `training_step()` or else backpropagation will fail!
-        return {"loss": loss,"dic_score":dic_score,"iou_score":iou_score}
+        self.log_dict(metrics, on_step=False, on_epoch=True)
+        
+        return {"loss": loss,"dic_score":metrics['train_dice']}
 
     def validation_step(self, batch: Any, batch_idx: int):
         loss, preds, mask = self.step(batch)
         
-        # self.logger.experiment.add_image('val/sample_img',batch[0][:4],0)
-        # self.log.log_image(key="samples", images=batch[0])
+        metrics = self.metrics[f"val_metrics"](preds,mask)
 
-        # log val metrics
-        dic_score = self.dice_coef(mask,preds).item()
-        # dic_score = self.val_dice(preds.flatten(),mask.flatten().int())
-        
-        iou_score = self.iou_coef(mask,preds).item()
-        
+        class_dice = {f'dice_score_{num}':i for num,i in enumerate(metrics['val_dice'])}
+        self.log_dict(class_dice , on_step=False, on_epoch=True)
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
-        self.log("val/dic_score", dic_score, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("val/iou_score", iou_score, on_step=False, on_epoch=True, prog_bar=True)
-
-        # return {"loss": loss,"dic_score":dic_score,"iou_score":iou_score}
-        return dic_score
+        
+        return metrics['val_dice']
         
 
     def validation_epoch_end(self, outputs):
         
-        dic_score = np.mean(np.array(outputs))  # get val accuracy from current epoch
+        dic_score = torch.mean(torch.stack(outputs))  # get val accuracy from current epoch
         
         if self.best_dice < dic_score: 
             self.save_model_pth()
             self.best_dice = dic_score
 
-        pass
-        # acc = self.val_acc.compute()  # get val accuracy from current epoch
-        # self.val_acc_best.update(acc)
-        # self.log("val/acc_best", self.val_acc_best.compute(), on_epoch=True, prog_bar=True)
-
+        
+        
     def test_step(self, batch: Any, batch_idx: int):
         loss, preds, mask = self.step(batch)
 
         # log test metrics
-        dic_score = self.dice_coef(mask,preds).item()
-        # dic_score = self.test_dice(preds.flatten(),mask.flatten().int())
-        iou_score = self.iou_coef(mask,preds).item()
-        self.log("test/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
-        self.log("test/dic_score", dic_score, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("test/iou_score", iou_score, on_step=False, on_epoch=True, prog_bar=True)
+        # dic_score = self.dice_coef(mask,preds).item()
+        metrics = self.metrics[f"test_metrics"](preds,mask)
+        self.log("val/total_score", metrics['test_comp_metric'], on_step=False, on_epoch=True, prog_bar=True)
+        self.log_dict(metrics, on_step=True, on_epoch=True)
+        
 
-        return {"loss": loss,"dic_score":dic_score,"iou_score":iou_score}
+        self.log("test/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
+        
+        
+        
+        return {"loss": loss}
 
     def test_epoch_end(self, outputs: List[Any]):
         pass
@@ -192,6 +185,44 @@ class MRIModule(LightningModule):
         See examples here:
             https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html#configure-optimizers
         """
-        return torch.optim.Adam(
-            params=self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay
-        )
+        optimizer_kwargs = dict(
+                    params=self.parameters(), lr=self.hparams.configure.lr, weight_decay=self.hparams.configure.weight_decay
+                )
+        if self.hparams.configure.optimizer == "Adadelta":
+            optimizer = torch.optim.Adadelta(**optimizer_kwargs)
+        elif self.hparams.configure.optimizer == "Adagrad":
+            optimizer = torch.optim.Adagrad(**optimizer_kwargs)
+        elif self.hparams.configure.optimizer == "Adam":
+            optimizer = torch.optim.Adam(**optimizer_kwargs)
+        elif self.hparams.configure.optimizer == "AdamW":
+            optimizer = torch.optim.AdamW(**optimizer_kwargs)
+        elif self.hparams.configure.optimizer == "Adamax":
+            optimizer = torch.optim.Adamax(**optimizer_kwargs)
+        elif self.hparams.configure.optimizer == "SGD":
+            optimizer = torch.optim.SGD(**optimizer_kwargs)
+        else:
+            raise ValueError(f"Unknown optimizer: {self.hparams.optimizer}")
+
+        if self.hparams.configure.scheduler is not None:
+            if self.hparams.configure.scheduler == "CosineAnnealingLR":
+                scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                    optimizer, T_max=self.hparams.configure.T_max, eta_min=self.hparams.configure.min_lr
+                )
+            elif self.hparams.configure.scheduler == "CosineAnnealingWarmRestarts":
+                scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+                    optimizer, T_0=self.hparams.configure.T_0, eta_min=self.hparams.configure.min_lr
+                )
+            elif self.hparams.configure.scheduler == "ExponentialLR":
+                scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+            elif self.hparams.configure.scheduler == "ReduceLROnPlateau":
+                scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3, factor=0.5)
+            else:
+                raise ValueError(f"Unknown scheduler: {self.hparams.configure.scheduler}")
+
+            return {"optimizer": optimizer, "lr_scheduler": {"scheduler": scheduler, "interval": "step"}}
+        else:
+            return {"optimizer": optimizer}
+
+
+
+        return {'optimizer':optim, 'scheduler': scheduler}

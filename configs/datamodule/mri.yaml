@@ -1,7 +1,7 @@
 _target_: src.datamodules.mri_datamodule.MRIDataModule
 
 data_dir: ${data_dir}25d_train_test_fold.csv # data_dir is specified in config.yaml
-batch_size: 50
+batch_size: 70
 fold: 0
 num_workers: 8
 pin_memory: False

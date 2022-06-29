@@ -1,18 +1,39 @@
+import enum
 import torch 
 import numpy as np 
+from torchmetrics import Metric
+from monai.metrics.utils import get_mask_edges
+from monai.metrics.utils import get_surface_distance
+# def dice_coef(self,y_true, y_pred, thr=0.5, dim=(2,3), epsilon=0.001):
+#         y_true = y_true.to(torch.float32)
+#         y_pred = (y_pred>thr).to(torch.float32)
+#         inter = (y_true*y_pred).sum(dim=dim)
+#         den = y_true.sum(dim=dim) + y_pred.sum(dim=dim)
+#         dice = ((2*inter+epsilon)/(den+epsilon)).mean(dim=(1,0))
+#         return dice
+
+#     def iou_coef(self,y_true, y_pred, thr=0.5, dim=(2,3), epsilon=0.001):
+#         y_true = y_true.to(torch.float32)
+#         y_pred = (y_pred>thr).to(torch.float32)
+#         inter = (y_true*y_pred).sum(dim=dim)
+#         union = (y_true + y_pred - y_true*y_pred).sum(dim=dim)
+#         iou = ((inter+epsilon)/(union+epsilon)).mean(dim=(1,0))
+#         return iou
+
 
 class DiceMetric(Metric):
-    def __init__(self, thr=0.5, dim=(2, 3), epsilon=0.001):
+    def __init__(self, thr=0.5, dim=(2, 3), epsilon=0.001,multilabel=True):
         super().__init__(compute_on_cpu=True)
 
         self.thr = thr
         self.dim = dim
         self.epsilon = epsilon
+        self.multilabel = multilabel
 
         self.add_state("dice", default=[])
 
     def update(self, y_pred, y_true):
-        self.dice.append(dice_metric_update(y_pred, y_true, self.thr, self.dim, self.epsilon))
+        self.dice.append(dice_metric_update(y_pred, y_true, self.thr, self.dim, self.epsilon, self.multilabel))
 
     def compute(self):
         if len(self.dice) == 1:
@@ -21,7 +42,7 @@ class DiceMetric(Metric):
             return torch.mean(torch.stack(self.dice))
 
 
-def dice_metric_update(y_pred, y_true, thr=0.5, dim=(2, 3), epsilon=0.001):
+def dice_metric_update(y_pred, y_true, thr=0.5, dim=(2, 3), epsilon=0.001, multilabel=True):
     y_pred = torch.nn.Sigmoid()(y_pred)
     y_pred = (y_pred > thr).detach().to(torch.float32)
 
@@ -30,23 +51,26 @@ def dice_metric_update(y_pred, y_true, thr=0.5, dim=(2, 3), epsilon=0.001):
     inter = (y_true * y_pred).sum(dim=dim)
     den = y_true.sum(dim=dim) + y_pred.sum(dim=dim)
 
-    dice = ((2 * inter + epsilon) / (den + epsilon)).mean(dim=(1, 0))
-
+    dice = ((2 * inter + epsilon) / (den + epsilon))
+    if multilabel == True: 
+        dice = dice.mean(dim=0)
+    else: 
+        dice = dice.mean(dim=(1, 0))
     return dice
 
 
 class IOUMetric(Metric):
-    def __init__(self, thr=0.5, dim=(2, 3), epsilon=0.001):
+    def __init__(self, thr=0.5, dim=(2, 3), epsilon=0.001,multilabel=True):
         super().__init__(compute_on_cpu=True)
 
         self.thr = thr
         self.dim = dim
         self.epsilon = epsilon
-
+        self.multilabel = multilabel
         self.add_state("iou", default=[])
 
     def update(self, y_pred, y_true):
-        self.iou.append(iou_metric_update(y_pred, y_true, self.thr, self.dim, self.epsilon))
+        self.iou.append(iou_metric_update(y_pred, y_true, self.thr, self.dim, self.epsilon,self.multilabel))
 
     def compute(self):
         if len(self.iou) == 1:
@@ -55,7 +79,7 @@ class IOUMetric(Metric):
             return torch.mean(torch.stack(self.iou))
 
 
-def iou_metric_update(y_pred, y_true, thr=0.5, dim=(2, 3), epsilon=0.001):
+def iou_metric_update(y_pred, y_true, thr=0.5, dim=(2, 3), epsilon=0.001,multilabel=True):
     y_pred = torch.nn.Sigmoid()(y_pred)
     y_pred = (y_pred > thr).detach().to(torch.float32)
 
@@ -64,7 +88,11 @@ def iou_metric_update(y_pred, y_true, thr=0.5, dim=(2, 3), epsilon=0.001):
     inter = (y_true * y_pred).sum(dim=dim)
     union = (y_true + y_pred - y_true * y_pred).sum(dim=dim)
 
-    iou = ((inter + epsilon) / (union + epsilon)).mean(dim=(1, 0))
+    iou = ((inter + epsilon) / (union + epsilon))
+    if multilabel == True:
+        iou = iou.mean(dim=0)
+    else:
+        iou = iou.mean(dim=(1, 0))
 
     return iou
 
