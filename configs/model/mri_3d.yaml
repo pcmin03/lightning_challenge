@@ -1,4 +1,4 @@
-_target_: src.models.mri_3d_module.MRIModule
+_target_: src.models.mri_module.MRIModule
 configure:
   lr: 0.002
   weight_decay: 0.0005

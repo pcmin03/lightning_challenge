@@ -16,6 +16,29 @@ from albumentations.pytorch.transforms import ToTensorV2,ToTensor
 
 import pandas as pd
 import cv2
+
+from monai.data import CacheDataset, DataLoader
+from monai.transforms import (
+    Compose,
+    Activations,
+    AsDiscrete,
+    Activationsd,
+    AsDiscreted,
+    KeepLargestConnectedComponentd,
+    Invertd,
+    LoadImage,
+    Transposed,
+    LoadImaged,
+    AddChanneld,
+    CastToTyped,
+    Lambdad,
+    Resized,
+    EnsureTyped,
+    SpatialPadd,
+    EnsureChannelFirstd,
+)
+
+
 class MRIDataModule(LightningDataModule):
     """Example of LightningDataModule for MNIST dataset.
 
@@ -58,7 +81,7 @@ class MRIDataModule(LightningDataModule):
 
     @property
     def num_classes(self) -> int:
-        return 1
+        return 3
 
     # def prepare_data(self):
     #     """Download data if needed.
@@ -83,10 +106,34 @@ class MRIDataModule(LightningDataModule):
         train_df = not_test_df[not_test_df['fold'] != self.fold]
         valid_df = not_test_df[not_test_df['fold'] == self.fold]
         
+        spatial_size = SPATIAL_SIZE
+
+        data_transforms = {
+            'train': 
+            monai.transforms.LoadImaged(keys=["image_3d", "mask_3d"]),
+            monai.transforms.AddChanneld(keys=["image_3d"]),
+            monai.transforms.AsChannelFirstd(keys=["mask_3d"], channel_dim=2),
+            monai.transforms.ScaleIntensityd(keys=["image_3d", "mask_3d"]),
+            #monai.transforms.ResizeWithPadOrCrop(keys=["image_3d", "mask_3d"], spatial_size=spatial_size),
+            monai.transforms.Resized(keys=["image_3d", "mask_3d"], spatial_size=spatial_size, mode="nearest"),
+        ]
+
+        test_transforms = [
+            monai.transforms.LoadImaged(keys=["image_3d"]),
+            monai.transforms.AddChanneld(keys=["image_3d"]),
+            monai.transforms.ScaleIntensityd(keys=["image_3d"]),
+            #monai.transforms.ResizeWithPadOrCrop(keys=["image_3d"], spatial_size=spatial_size),
+            monai.transforms.Resized(keys=["image_3d"], spatial_size=spatial_size, mode="nearest"),
+        ]
+
+        train_transforms = monai.transforms.Compose(transforms)
+        val_transforms = monai.transforms.Compose(transforms)
+        test_transforms = monai.transforms.Compose(test_transforms)
+
 
         data_transforms = {
             "train": A.Compose([
-                # A.Resize(320,320),
+                A.Resize(320,320),
                 A.HorizontalFlip(p=0.5),
                 A.VerticalFlip(p=0.5),
                 A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.05, rotate_limit=10, p=0.5),
@@ -101,7 +148,7 @@ class MRIDataModule(LightningDataModule):
                 
             
             "valid": A.Compose([
-                # A.Resize(320,320),
+                A.Resize(320,320),
                 ToTensorV2(),
                 ], p=1.0)
         }

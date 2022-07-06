@@ -12,7 +12,6 @@ import segmentation_models_pytorch as smp
 from pathlib import Path
 from torchmetrics import MetricCollection
 from ..utils.metrics import DiceMetric,IOUMetric,CompetitionMetric
-from pytorch_lightning.loggers import LoggerCollection, WandbLogger
 
 class MRIModule(LightningModule):
     """Example of LightningModule for MNIST classification.
@@ -31,8 +30,7 @@ class MRIModule(LightningModule):
     def __init__(
         self,
         net: torch.nn.Module,
-        configure: torch.optim,
-        logger
+        configure: torch.optim
     ):
         super().__init__()
 
@@ -67,12 +65,12 @@ class MRIModule(LightningModule):
         self.metrics = self._init_metrics()
         self.class_weight = [0.59,0.67,0.75]
 
+        print(self.logger,'1203918203981029381029380198230912809')
+        
     def criterion(self,y_pred, y_true):
         bceloss = self.BCELoss(y_pred, y_true).mean(dim=(0,2,3))
         bceloss = bceloss * torch.as_tensor(self.class_weight, device=torch.device('cuda'))
-
-        print(self.DiceLoss(y_pred, y_true),'120398')
-        loss = 0.5*self.DiceLoss(y_pred, y_true) + 0.5*bceloss.mean()
+        loss = 0.3*self.DiceLoss(y_pred, y_true) + 0.3*self.TverskyLoss(y_pred, y_true) + 0.3*bceloss.mean()
         return loss
         
 

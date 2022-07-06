@@ -5,7 +5,7 @@ defaults:
   - _self_
   - datamodule: mri.yaml
   - model: mri.yaml
-  - callbacks: default.yaml
+  - callbacks: wandb.yaml
   - logger: wandb # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
   - trainer: default.yaml
   - log_dir: default.yaml
@@ -50,8 +50,8 @@ train: True
 test: True
 
 # seed for random number generators in pytorch, numpy and python.random
-seed: null
+seed: 2022
 
 # default name for the experiment, determines logging folder path
 # (you can overwrite this name in experiment configs)
-name: ${model.net.encoder_name}
+name: $(model.net.encoder_name)_${model.net.decoder})_test
