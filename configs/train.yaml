@@ -54,4 +54,4 @@ seed: 2022
 
 # default name for the experiment, determines logging folder path
 # (you can overwrite this name in experiment configs)
-name: $(model.net.encoder_name)_${model.net.decoder})_test
+name: ${model.net.encoder_name}_${model.net.decoder}_${model.net.classes}test

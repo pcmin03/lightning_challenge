@@ -259,7 +259,6 @@ class LogImagePredictions(Callback):
     def on_sanity_check_end(self, trainer, pl_module):
         """Start executing this callback only after all validation sanity checks end."""
         self.ready = True
-        self.on_validation_epoch_end(trainer,pl_module)
 
     def on_validation_epoch_end(self, trainer, pl_module):
         if self.ready:
@@ -275,22 +274,41 @@ class LogImagePredictions(Callback):
             logits = pl_module(val_imgs)
 
             preds = torch.sigmoid(logits)
-            
+
+            # val_imgs = val_imgs.detach().cpu().numpy()
+            # val_labels = val_labels.detach().cpu().numpy()
+            # preds = preds.detach().cpu().numpy()            
             # n = np.random.randint(0, )
-            n = np.random.choice(val_imgs.shape[0], 5,replace=False)
-            
-            experiment.log(
-                {
-                    f"Images/image_{experiment.name}": [wandb.Image(x, caption=f"image_{num}") for num,x in enumerate(val_imgs[n])]
-                }
-            )
-            experiment.log(
-                {
-                    f"Images/labels_{experiment.name}": [wandb.Image(x, caption=f"label_{num}") for num,x in enumerate(val_labels[n])]
-                }
-            )
-            experiment.log(
-                {
-                    f"Images/predic_1_{experiment.name}": [wandb.Image(x*100, caption=f"predic_{num}") for num,x in enumerate(preds[n])]
-                }
-            )
+        
+            mean_color = torch.sum(val_labels,axis=(1,2,3))
+            value,idx = torch.unique(mean_color,return_inverse=True)
+
+            if len(value) > 1: 
+                val_imgs   = val_imgs[idx != 0]
+                val_labels = val_labels[idx != 0]
+                preds      = preds[idx != 0]
+
+                n = np.random.choice(val_imgs.shape[0], 5,replace=False)
+                b,c,w,h = val_imgs.shape
+
+                val_imgs = torch.cat(list(val_imgs[n]),dim=1)
+                val_labels = torch.cat(list(val_labels[n]),dim=1)
+                preds = torch.cat(list(preds[n]),dim=1)
+                
+                # val_labels[n]
+                # preds[n]
+                experiment.log(
+                    {
+                        f"Images/image_{experiment.name}": [wandb.Image(x, caption=f"image_{num}") for num,x in enumerate([val_imgs[:3],val_labels,preds[0],preds[1],preds[2]])]
+                    }
+                )
+                # experiment.log(
+                #     {
+                #         f"Images/labels_{experiment.name}": [wandb.Image(x, caption=f"label_{num}") for num,x in enumerate(val_labels[n])]
+                #     }
+                # )
+                # experiment.log(
+                #     {
+                #         f"Images/predic_1_{experiment.name}": [wandb.Image(x*100, caption=f"predic_{num}") for num,x in enumerate(preds[n])]
+                #     }
+                # )

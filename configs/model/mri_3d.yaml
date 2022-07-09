@@ -1,4 +1,4 @@
-_target_: src.models.mri_module.MRIModule
+_target_: src.models.mri_3d_module.MRIModule
 configure:
   lr: 0.002
   weight_decay: 0.0005
@@ -8,10 +8,8 @@ configure:
   T_max : 500
   min_lr : 1e-6
 
-
 net:
-  _target_: src.models.components.segmentation.Seg
-  decoder : Unet
-  encoder_name: 'efficientnet-b0'
-  encoder_weights: 'imagenet'
+  _target_: src.models.components.segmentation.Seg3d
+  decoder : unet
+  encoder_name : '3d'
   classes: 3

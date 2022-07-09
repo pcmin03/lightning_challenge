@@ -7,6 +7,7 @@ model_checkpoint:
   verbose: False
   dirpath: "checkpoints/"
   filename: "epoch_{epoch:03d}"
+  save_weights_only : True
   auto_insert_metric_name: False
 
 early_stopping:
@@ -23,5 +24,6 @@ model_summary:
 rich_progress_bar:
   _target_: pytorch_lightning.callbacks.RichProgressBar
 
-swa: 
-  _target_: pytorch_lightning.callbacks.StochasticWeightAveraging
+# swa: 
+#   _target_: pytorch_lightning.callbacks.StochasticWeightAveraging
+

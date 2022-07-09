@@ -12,7 +12,9 @@ import segmentation_models_pytorch as smp
 from pathlib import Path
 from torchmetrics import MetricCollection
 from ..utils.metrics import DiceMetric,IOUMetric,CompetitionMetric
+# form ..utils.loss import hddistloss
 from pytorch_lightning.loggers import LoggerCollection, WandbLogger
+import sys
 
 class MRIModule(LightningModule):
     """Example of LightningModule for MNIST classification.
@@ -31,8 +33,7 @@ class MRIModule(LightningModule):
     def __init__(
         self,
         net: torch.nn.Module,
-        configure: torch.optim,
-        logger
+        configure: torch.optim
     ):
         super().__init__()
 
@@ -41,38 +42,38 @@ class MRIModule(LightningModule):
         self.save_hyperparameters(logger=False)
 
         self.net = net
-
         # loss function
         # self.criterion = torch.nn.CrossEntropyLoss()
         self.sigmoid = torch.nn.Sigmoid()
         # use separate metric instance for train, val and test step
         # to ensure a proper reduction over the epoch
-        self.train_dice = Dice(num_classes=3,average='macro')
-        self.val_dice = Dice(num_classes=3,average='macro')
-        self.test_dice = Dice(num_classes=3,average='macro')
-        
 
         # for logging best so far validation accuracy
         self.val_acc_best = MaxMetric()
 
         self.JaccardLoss = smp.losses.JaccardLoss(mode='multilabel')
-        self.DiceLoss    = smp.losses.DiceLoss(mode='multilabel')
+        self.DiceLoss    = smp.losses.DiceLoss(mode='binary')
         self.BCELoss     = smp.losses.SoftBCEWithLogitsLoss(reduction='none')
         self.LovaszLoss  = smp.losses.LovaszLoss(mode='multilabel', per_image=False)
         self.TverskyLoss = smp.losses.TverskyLoss(mode='multilabel', log_loss=False)
+        # self.FocalLoss   = smp.losses.FocalLoss(mode='multilabel',log)
 
         self.model_save_dir = Path('checkpoint')
         self.best_dice = 0 
 
         self.metrics = self._init_metrics()
-        self.class_weight = [0.59,0.67,0.75]
+        
 
     def criterion(self,y_pred, y_true):
         bceloss = self.BCELoss(y_pred, y_true).mean(dim=(0,2,3))
-        bceloss = bceloss * torch.as_tensor(self.class_weight, device=torch.device('cuda'))
+        class_weight = torch.as_tensor([1,1,1], device=torch.device('cuda'))
+        bceloss = bceloss * class_weight
 
-        print(self.DiceLoss(y_pred, y_true),'120398')
-        loss = 0.5*self.DiceLoss(y_pred, y_true) + 0.5*bceloss.mean()
+        dice_stro = self.DiceLoss(y_pred[:,0], y_true[:,0]) * class_weight[0]
+        dice_larg = self.DiceLoss(y_pred[:,1], y_true[:,1]) * class_weight[1]
+        dice_smal = self.DiceLoss(y_pred[:,2], y_true[:,2]) * class_weight[2]
+
+        loss = 0.5*((dice_stro + dice_larg + dice_smal).mean()) + 0.5*bceloss.mean()
         return loss
         
 
@@ -128,34 +129,34 @@ class MRIModule(LightningModule):
         
         metrics = self.metrics[f"train_metrics"](preds,mask)
         
-        class_dice = {f'train/dic_score_cl{num}':i for num,i in enumerate(metrics['train_dice'])}
+        class_dice = {f'train/dic_score_cl{num}':i.item() for num,i in enumerate(metrics['train_dice'])}
         self.log_dict(class_dice, on_step=False, on_epoch=True, prog_bar=True)
         self.log("train/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
         self.log_dict(metrics, on_step=False, on_epoch=True)
         
         return {"loss": loss,"dic_score":metrics['train_dice']}
-
+    
     def validation_step(self, batch: Any, batch_idx: int):
         loss, preds, mask = self.step(batch)
         
         metrics = self.metrics[f"val_metrics"](preds,mask)
-
-        class_dice = {f'val/dic_score_cl{num}':i for num,i in enumerate(metrics['val_dice'])}
-        self.log_dict(class_dice , on_step=False, on_epoch=True)
-        self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
+        class_dice = {f'val/dic_score_cl{num}':i.item() for num,i in enumerate(metrics['val_dice'])}
+        self.log_dict(class_dice , on_step=False, on_epoch=True, prog_bar=True)
+        self.log("val/loss", loss.item(), on_step=False, on_epoch=True, prog_bar=False)
         
         return metrics['val_dice']
-        
-
-    def validation_epoch_end(self, outputs):
-        
+    def validation_epoch_end(self,outputs):
         dic_score = torch.mean(torch.stack(outputs))  # get val accuracy from current epoch
         
         if self.best_dice < dic_score: 
             self.save_model_pth()
             self.best_dice = dic_score
 
-        
+        self.metrics['val_metrics'].reset()
+    
+    def on_epoch_end(self,): 
+        self.metrics['train_metrics'].reset()
+        self.metrics['test_metrics'].reset()
         
     def test_step(self, batch: Any, batch_idx: int):
         loss, preds, mask = self.step(batch)
@@ -165,22 +166,12 @@ class MRIModule(LightningModule):
         metrics = self.metrics[f"test_metrics"](preds,mask)
         self.log("test/total_score", metrics['test_comp_metric'], on_step=False, on_epoch=True, prog_bar=True)
         self.log_dict(metrics, on_step=True, on_epoch=True)
-        
-
         self.log("test/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
-        
-        
         
         return {"loss": loss}
 
     def test_epoch_end(self, outputs: List[Any]):
         pass
-
-    def on_epoch_end(self):
-        # reset metrics at the end of every epoch
-        self.train_dice.reset()
-        self.test_dice.reset()
-        self.val_dice.reset()
 
     def configure_optimizers(self):
         """Choose what optimizers and learning-rate schedulers to use in your optimization.

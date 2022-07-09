@@ -16,6 +16,7 @@ from albumentations.pytorch.transforms import ToTensorV2,ToTensor
 
 import pandas as pd
 import cv2
+
 class MRIDataModule(LightningDataModule):
     """Example of LightningDataModule for MNIST dataset.
 
@@ -36,6 +37,7 @@ class MRIDataModule(LightningDataModule):
     def __init__(
         self,
         data_dir: str = "data/",
+        file_name : str = '25d_train_test_fold.csv',
         fold: int = 0,
         batch_size: int = 64,
         num_workers: int = 0,
@@ -52,6 +54,7 @@ class MRIDataModule(LightningDataModule):
         # )
         self.data_dir = data_dir
         self.fold = fold
+        self.file_name = file_name
         self.data_train: Optional[Dataset] = None
         self.data_val: Optional[Dataset] = None
         self.data_test: Optional[Dataset] = None
@@ -77,7 +80,7 @@ class MRIDataModule(LightningDataModule):
         differentiate whether it's called before trainer.fit()` or `trainer.test()`.
         """
         
-        df = pd.read_csv(self.data_dir)
+        df = pd.read_csv(self.data_dir + self.file_name)
         test_df = df[df['test'] == 1]
         not_test_df = df[df['test'] != 1]
         train_df = not_test_df[not_test_df['fold'] != self.fold]
@@ -111,6 +114,7 @@ class MRIDataModule(LightningDataModule):
             self.data_train = BuildDataset(train_df,True,transforms=data_transforms['train'])
             self.data_val = BuildDataset(valid_df,True,transforms=data_transforms['valid'])
             self.data_test = BuildDataset(test_df,True,transforms=data_transforms['valid'])
+            
             # dataset = ConcatDataset(datasets=[trainset, testset])
             # self.data_train, self.data_val, self.data_test = random_split(
             #     dataset=dataset,

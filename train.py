@@ -5,7 +5,7 @@ from omegaconf import DictConfig
 # load environment variables from `.env` file if it exists
 # recursively searches for `.env` in all folders starting from work dir
 dotenv.load_dotenv(override=True)
-
+import sys
 
 @hydra.main(config_path="configs/", config_name="train.yaml")
 def main(config: DictConfig):
@@ -14,7 +14,7 @@ def main(config: DictConfig):
     # https://github.com/facebookresearch/hydra/issues/934
     from src import utils
     from src.training_pipeline import train
-
+    print(sys.path)
     # Applies optional utilities
     utils.extras(config)
 

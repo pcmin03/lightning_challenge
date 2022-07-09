@@ -15,6 +15,6 @@ defaults:
 #   ckpt_dir: "checkpoints/"
 #   upload_best_only: True
 
-# log_image_predictions:
-#   _target_: src.callbacks.wandb_callbacks.LogImagePredictions
-#   num_samples: 8
+log_image_predictions:
+  _target_: src.callbacks.wandb_callbacks.LogImagePredictions
+  num_samples: 8
