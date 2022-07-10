@@ -14,6 +14,8 @@ from pytorch_lightning.loggers import LightningLoggerBase
 
 from src import utils
 
+from pytorch_lightning.plugins import DDPPlugin
+
 log = utils.get_logger(__name__)
 
 
@@ -65,7 +67,7 @@ def train(config: DictConfig) -> Optional[float]:
 
     # Init lightning trainer
     log.info(f"Instantiating trainer <{config.trainer._target_}>")
-    print(logger,'123091820398losdfliausodigualiu')
+    
     trainer: Trainer = hydra.utils.instantiate(
         config.trainer, callbacks=callbacks, logger=logger, _convert_="partial"
     )

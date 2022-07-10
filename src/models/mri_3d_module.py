@@ -12,6 +12,7 @@ import segmentation_models_pytorch as smp
 from pathlib import Path
 from torchmetrics import MetricCollection
 from ..utils.metrics import DiceMetric3d
+from ..utils.loss import DiceBceMultilabelLoss
 
 import monai
 from monai.networks import nets
@@ -43,19 +44,34 @@ class MRIModule(LightningModule):
 
         self.net = net
         # loss function
-        
+        self.net = nets.UNet(
+                    spatial_dims=3,
+                    in_channels=1,
+                    out_channels=3,
+                    channels=(32, 64, 128, 256, 512),
+                    strides=(2,2,1,1),#(2, 2, 2, 2),
+                    kernel_size=3,
+                    up_kernel_size=3,
+                    num_res_units=2,
+                    act="PRELU",
+                    norm="BATCH",
+                    dropout=0.2,
+                    bias=True,
+                    dimensions=None,
+                )
+
         self.sigmoid = torch.nn.Sigmoid()
         
         self.DiceLoss      = monai.losses.DiceLoss(sigmoid=True)
         self.DiceCELoss    = monai.losses.DiceCELoss(sigmoid=True)
         self.DiceFocalLoss = monai.losses.DiceFocalLoss(sigmoid=True)
-
+        self.DiceMultilabel = DiceBceMultilabelLoss()
         self.metrics = self._init_metrics()
         self.class_weight = [1,1,1]
 
     def criterion(self,y_pred, y_true):
         
-        loss = self.DiceCELoss(y_pred,y_true)
+        loss = self.DiceLoss(y_pred,y_true)
         return loss
 
     def forward(self, x: torch.Tensor):
@@ -77,7 +93,7 @@ class MRIModule(LightningModule):
 
     def step(self, batch: Any):
         
-        x, y = batch['image_3d'],batch['mask_3d']
+        x, y = batch['image'],batch['mask']
         
         logits = self.forward(x)
         
@@ -91,32 +107,32 @@ class MRIModule(LightningModule):
         # log train metrics
         
         metrics = self.metrics[f"train_metrics"](preds,mask)
-        
-        class_dice = {f'train/dic_score_cl{num}':i for num,i in enumerate(metrics['train_dice'])}
-        self.log_dict(class_dice, on_step=False, on_epoch=True, prog_bar=True)
+        # print(metrics['train_dice'])
+        # class_dice = {f'train/dic_score_cl{num}':i for num,i in enumerate(metrics['train_dice'])}
+        # self.log_dict(class_dice, on_step=False, on_epoch=True, prog_bar=True)
         self.log("train/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
-        
+        self.log("train/dic_score_cl2", metrics['train_dice'], on_step=False, on_epoch=True, prog_bar=False)        
         return {"loss": loss,"dic_score":metrics['train_dice']}
 
-    # def validation_step(self, batch: Any, batch_idx: int):
-    #     loss, preds, mask = self.step(batch)
+    def validation_step(self, batch: Any, batch_idx: int):
+        loss, preds, mask = self.step(batch)
         
-    #     metrics = self.metrics[f"val_metrics"](preds,mask)
+        metrics = self.metrics[f"val_metrics"](preds,mask)
+        # print(metrics['val_dice'])
+        # class_dice = {f'val/dic_score_cl{num}':i for num,i in enumerate(metrics['val_dice'])}
+        # self.log_dict(class_dice , on_step=False, on_epoch=True)
+        self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
+        self.log("val/dic_score_cl2", metrics['val_dice'], on_step=False, on_epoch=True, prog_bar=False)
+        return metrics['val_dice']
+        
 
-    #     class_dice = {f'val/dic_score_cl{num}':i for num,i in enumerate(metrics['val_dice'])}
-    #     self.log_dict(class_dice , on_step=False, on_epoch=True)
-    #     self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
+    def validation_epoch_end(self, outputs):
+        pass
+        # dic_score = torch.mean(torch.stack(outputs))  # get val accuracy from current epoch
         
-    #     return metrics['val_dice']
-        
-
-    # def validation_epoch_end(self, outputs):
-        
-    #     dic_score = torch.mean(torch.stack(outputs))  # get val accuracy from current epoch
-        
-    #     if self.best_dice < dic_score: 
-    #         self.save_model_pth()
-    #         self.best_dice = dic_score
+        # if self.best_dice < dic_score: 
+        #     self.save_model_pth()
+        #     self.best_dice = dic_score
 
     def test_step(self, batch: Any, batch_idx: int):
         loss, preds, mask = self.step(batch)
@@ -125,7 +141,7 @@ class MRIModule(LightningModule):
         # dic_score = self.dice_coef(mask,preds).item()
         metrics = self.metrics[f"test_metrics"](preds,mask)
         self.log("test/total_score", metrics['test_comp_metric'], on_step=False, on_epoch=True, prog_bar=True)
-        self.log_dict(metrics, on_step=True, on_epoch=True)
+        # self.log_dict(metrics, on_step=True, on_epoch=True)
         self.log("test/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
         
         return {"loss": loss}

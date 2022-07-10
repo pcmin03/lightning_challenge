@@ -14,7 +14,7 @@ def main(config: DictConfig):
     # https://github.com/facebookresearch/hydra/issues/934
     from src import utils
     from src.training_pipeline import train
-    print(sys.path)
+    # print(sys.path)
     # Applies optional utilities
     utils.extras(config)
 

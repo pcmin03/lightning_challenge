@@ -54,6 +54,7 @@ class MRIModule(LightningModule):
         self.JaccardLoss = smp.losses.JaccardLoss(mode='multilabel')
         self.DiceLoss    = smp.losses.DiceLoss(mode='binary')
         self.BCELoss     = smp.losses.SoftBCEWithLogitsLoss(reduction='none')
+        self.CELoss      = smp.losses.SoftCrossEntropyLoss(reduction='none')
         self.LovaszLoss  = smp.losses.LovaszLoss(mode='multilabel', per_image=False)
         self.TverskyLoss = smp.losses.TverskyLoss(mode='multilabel', log_loss=False)
         # self.FocalLoss   = smp.losses.FocalLoss(mode='multilabel',log)
@@ -66,7 +67,7 @@ class MRIModule(LightningModule):
 
     def criterion(self,y_pred, y_true):
         bceloss = self.BCELoss(y_pred, y_true).mean(dim=(0,2,3))
-        class_weight = torch.as_tensor([1,1,1], device=torch.device('cuda'))
+        class_weight = torch.as_tensor([1,1,0.6], device=torch.device('cuda'))
         bceloss = bceloss * class_weight
 
         dice_stro = self.DiceLoss(y_pred[:,0], y_true[:,0]) * class_weight[0]
@@ -145,17 +146,10 @@ class MRIModule(LightningModule):
         self.log("val/loss", loss.item(), on_step=False, on_epoch=True, prog_bar=False)
         
         return metrics['val_dice']
-    def validation_epoch_end(self,outputs):
-        dic_score = torch.mean(torch.stack(outputs))  # get val accuracy from current epoch
-        
-        if self.best_dice < dic_score: 
-            self.save_model_pth()
-            self.best_dice = dic_score
-
-        self.metrics['val_metrics'].reset()
     
     def on_epoch_end(self,): 
         self.metrics['train_metrics'].reset()
+        self.metrics['val_metrics'].reset()
         self.metrics['test_metrics'].reset()
         
     def test_step(self, batch: Any, batch_idx: int):

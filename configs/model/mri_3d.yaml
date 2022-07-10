@@ -1,12 +1,13 @@
 _target_: src.models.mri_3d_module.MRIModule
 configure:
-  lr: 0.002
+  lr: 0.00002
   weight_decay: 0.0005
   warm_up_step : 3
   optimizer : AdamW
   scheduler : CosineAnnealingLR
   T_max : 500
   min_lr : 1e-6
+  mas_lr : 1e-3
 
 net:
   _target_: src.models.components.segmentation.Seg3d

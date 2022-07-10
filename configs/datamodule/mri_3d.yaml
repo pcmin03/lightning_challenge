@@ -4,5 +4,5 @@ data_dir: ${data_dir}
 batch_size: 30
 fold: 0
 file_name : dataset_3d_fold_${datamodule.fold}.json # data_dir is specified in config.yaml
-num_workers: 8
+num_workers: 4
 pin_memory: False

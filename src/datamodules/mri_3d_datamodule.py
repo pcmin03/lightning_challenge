@@ -101,89 +101,98 @@ class MRIDataModule(LightningDataModule):
         # not_test_df = df[df['test'] != 1]
         # train_df = not_test_df[not_test_df['fold'] != self.fold].reset_index(drop=True)
         # valid_df = not_test_df[not_test_df['fold'] == self.fold].reset_index(drop=True)
-        data_transforms = {'train' : transforms.Compose(
-                [
-                    transforms.LoadImaged(keys=["image", "mask"]),
-                    # EnsureChannelFirstd(keys=["image", "mask"]),
-                    # Spacingd(keys=["image", "mask"], pixdim=cfg.spacing, mode=("bilinear", "nearest")),
-                    # transforms.RandSpatialCropd(
-                    #     keys=("image", "mask"),
-                    #     roi_size=(args.roi_x, args.roi_y, args.roi_z),
-                    #     random_size=False,
-                    # ),
-                    transforms.Lambdad(keys="image", func=lambda x: x / 255.),
-                    # transforms.RandFlipd(keys=("image", "mask"), prob=args.RandFlipd_prob, spatial_axis=[0]),
-                    # transforms.RandFlipd(keys=("image", "mask"), prob=args.RandFlipd_prob, spatial_axis=[1]),
-                    # RandFlipd(keys=("image", "mask"), prob=0.5, spatial_axis=[2]),
-                    # transforms.RandAffined(
-                    #     keys=("image", "mask"),
-                    #     prob=0.5,
-                    #     rotate_range=np.pi / 12,
-                    #     translate_range=(args.roi_x*0.0625, args.roi_y*0.0625),
-                    #     scale_range=(0.1, 0.1),
-                    #     mode="nearest",
-                    #     padding_mode="reflection",
-                    # ),
-                    transforms.OneOf(
-                        [
-                            transforms.RandGridDistortiond(keys=("image", "mask"), prob=0.3, distort_limit=(-0.05, 0.05), mode="nearest", padding_mode="reflection"),
-                            transforms.RandCoarseDropoutd(
-                                keys=("image", "mask"),
-                                holes=5,
-                                max_holes=8,
-                                spatial_size=(1, 1, 1),
-                                max_spatial_size=(12, 12, 12),
-                                fill_value=0.0,
-                                prob=0.3,
-                            ),
-                        ]
-                    ),
-                    # transforms.RandScaleIntensityd(keys="image", factors=(-0.2, 0.2), prob=args.RandScaleIntensityd_prob),
-                    # transforms.RandShiftIntensityd(keys="image", offsets=(-0.1, 0.1), prob=args.RandShiftIntensityd_prob),
-                    transforms.EnsureTyped(keys=("image", "mask"), dtype=torch.float32),
-                ]
-            ),
-                    'valid' : transforms.Compose(
-                        [
-                            transforms.LoadImaged(keys=["image", "mask"]),
-                            transforms.Lambdad(keys="image", func=lambda x: x / 255.),
-                            # transforms.AddChanneld(keys=["image", "mask"]),
-                            # transforms.Orientationd(keys=["image", "mask"], axcodes="RAS"),
-                            # transforms.Spacingd(
-                            #     keys=["image", "mask"], pixdim=(args.space_x, args.space_y, args.space_z), mode=("bilinear", "nearest")
-                            # ),
-                            # transforms.ScaleIntensityRanged(
-                            #     keys=["image"], a_min=args.a_min, a_max=args.a_max, b_min=args.b_min, b_max=args.b_max, clip=True
-                            # ),
-                            # transforms.CropForegroundd(keys=["image", "mask"], source_key="image"),
-                            transforms.EnsureTyped(keys=("image", "mask"), dtype=torch.float32),
-                        ]
-                    )}
+        # data_transforms = {'train' : transforms.Compose(
+        #         [
+        #             transforms.LoadImaged(keys=["image", "mask"]),
+        #             # EnsureChannelFirstd(keys=["image", "mask"]),
+        #             # Spacingd(keys=["image", "mask"], pixdim=cfg.spacing, mode=("bilinear", "nearest")),
+        #             # transforms.RandSpatialCropd(
+        #             #     keys=("image", "mask"),
+        #             #     roi_size=(args.roi_x, args.roi_y, args.roi_z),
+        #             #     random_size=False,
+        #             # ),
+        #             transforms.Lambdad(keys="image", func=lambda x: x / 255.),
+        #             # transforms.RandFlipd(keys=("image", "mask"), prob=args.RandFlipd_prob, spatial_axis=[0]),
+        #             # transforms.RandFlipd(keys=("image", "mask"), prob=args.RandFlipd_prob, spatial_axis=[1]),
+        #             # RandFlipd(keys=("image", "mask"), prob=0.5, spatial_axis=[2]),
+        #             # transforms.RandAffined(
+        #             #     keys=("image", "mask"),
+        #             #     prob=0.5,
+        #             #     rotate_range=np.pi / 12,
+        #             #     translate_range=(args.roi_x*0.0625, args.roi_y*0.0625),
+        #             #     scale_range=(0.1, 0.1),
+        #             #     mode="nearest",
+        #             #     padding_mode="reflection",
+        #             # ),
+        #             transforms.OneOf(
+        #                 [
+        #                     transforms.RandGridDistortiond(keys=("image", "mask"), prob=0.3, distort_limit=(-0.05, 0.05), mode="nearest", padding_mode="reflection"),
+        #                     transforms.RandCoarseDropoutd(
+        #                         keys=("image", "mask"),
+        #                         holes=5,
+        #                         max_holes=8,
+        #                         spatial_size=(1, 1, 1),
+        #                         max_spatial_size=(12, 12, 12),
+        #                         fill_value=0.0,
+        #                         prob=0.3,
+        #                     ),
+        #                 ]
+        #             ),
+        #             # transforms.RandScaleIntensityd(keys="image", factors=(-0.2, 0.2), prob=args.RandScaleIntensityd_prob),
+        #             # transforms.RandShiftIntensityd(keys="image", offsets=(-0.1, 0.1), prob=args.RandShiftIntensityd_prob),
+        #             transforms.EnsureTyped(keys=("image", "mask"), dtype=torch.float32),
+        #         ]
+        #     ),
+        #             'valid' : transforms.Compose(
+        #                 [
+        #                     transforms.LoadImaged(keys=["image", "mask"]),
+        #                     transforms.Lambdad(keys="image", func=lambda x: x / 255.),
+        #                     # transforms.AddChanneld(keys=["image", "mask"]),
+        #                     # transforms.Orientationd(keys=["image", "mask"], axcodes="RAS"),
+        #                     # transforms.Spacingd(
+        #                     #     keys=["image", "mask"], pixdim=(args.space_x, args.space_y, args.space_z), mode=("bilinear", "nearest")
+        #                     # ),
+        #                     # transforms.ScaleIntensityRanged(
+        #                     #     keys=["image"], a_min=args.a_min, a_max=args.a_max, b_min=args.b_min, b_max=args.b_max, clip=True
+        #                     # ),
+        #                     # transforms.CropForegroundd(keys=["image", "mask"], source_key="image"),
+        #                     transforms.EnsureTyped(keys=("image", "mask"), dtype=torch.float32),
+        #                 ]
+        #             )}
 
-        # spatial_size = (224, 224, 80)
-        # data_transforms = {
-        #     'train': Compose([
-        #         LoadImaged(keys=["image", "mask"]),
-        #         # AddChanneld(keys=["image","mask"]),
-        #         # Resized(keys=["image"], spatial_size=spatial_size, mode="nearest"),
-        #         # Transposed(keys="image", indices=[0, 2, 3, 1]), # c, w, h, d
+        spatial_size = (192, 192, 128)
+        data_transforms = {
+            'train': transforms.Compose([
+                transforms.LoadImaged(keys=["image", "mask"]),
+                # transforms.AddChanneld(keys=["image"]),
+                # transforms.AsChannelFirstd(keys=["image", "mask"], channel_dim=-1),
+                # transforms.ScaleIntensityd(keys=["image", "mask"]),
+                transforms.Lambdad(keys="image", func=lambda x: x / 255.),
+                transforms.Resized(keys=["image", "mask"], spatial_size=spatial_size, mode="nearest"),
+                # Resized(keys=["image"], spatial_size=spatial_size, mode="nearest"),
+                # transforms.Transposed(keys=["image", "mask"], indices=[0, 2, 3, 1]), # c, w, h, d
                 
-        #         Lambdad(keys="image", func=lambda x: x / x.max()),
-        #         RandFlipd(keys=("image", "mask"), prob=0.5, spatial_axis=[0]),
-        #         RandFlipd(keys=("image", "mask"), prob=0.5, spatial_axis=[1]),
-        #         EnsureTyped(keys=["image",'mask'], dtype=torch.float32),
-        #         #monai.transforms.ResizeWithPadOrCrop(keys=["image", "mask"], spatial_size=spatial_size),
-        #         ]),
+                # transforms.Lambdad(keys="image", func=lambda x: x / x.max()),
+                # transforms.RandFlipd(keys=("image", "mask"), prob=0.5, spatial_axis=[0]),
+                # transforms.RandFlipd(keys=("image", "mask"), prob=0.5, spatial_axis=[1]),
+                # transforms.EnsureTyped(keys=["image",'mask'], dtype=torch.float32),
+                #monai.transforms.ResizeWithPadOrCrop(keys=["image", "mask"], spatial_size=spatial_size),
+                ]),
 
-        #     'valid' : Compose([
-        #         LoadImaged(keys=["image", "mask"]),
-        #         # AddChanneld(keys=["image","mask"]),
-        #         # Resized(keys=["image"], spatial_size=spatial_size, mode="nearest"),
-        #         # Transposed(keys="image", indices=[0, 2, 3, 1]), # c, w, h, d
-        #         Lambdad(keys="image", func=lambda x: x / x.max()),
-        #         EnsureTyped(keys=["image", "mask"], dtype=torch.float32),
-        #         #monai.transforms.ResizeWithPadOrCrop(keys=["image"], spatial_size=spatial_size),
-        #         ])}
+            'valid' : transforms.Compose([
+                transforms.LoadImaged(keys=["image", "mask"]),
+                # transforms.AddChanneld(keys=["image"]),
+                # transforms.AsChannelFirstd(keys=["image","mask"], channel_dim=-1),
+                # transforms.ScaleIntensityd(keys=["image","mask"]),
+                # transforms.Resized(keys=["image", "mask"], spatial_size=spatial_size, mode="nearest"),
+                # AddChanneld(keys=["image","mask"]),
+                transforms.Lambdad(keys="image", func=lambda x: x / 255.),
+                transforms.Resized(keys=["image","mask"], spatial_size=spatial_size, mode="nearest"),
+                # transforms.Transposed(keys="image", indices=[0, 2, 3, 1]), # c, w, h, d
+                # transforms.Lambdad(keys="image", func=lambda x: x / x.max()),
+                # transforms.EnsureTyped(keys=["image", "mask"], dtype=torch.float32),
+                #monai.transforms.ResizeWithPadOrCrop(keys=["image"], spatial_size=spatial_size),
+                ])}
         
         # load datasets only if they're not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
