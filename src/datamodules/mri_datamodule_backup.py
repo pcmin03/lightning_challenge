@@ -42,7 +42,7 @@ class MRIDataModule(LightningDataModule):
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
-        add_channel: bool = True
+        add_channel: bool = False,
     ):
         super().__init__()
 
@@ -103,7 +103,7 @@ class MRIDataModule(LightningDataModule):
                 ], p=0.5),
                 A.CoarseDropout(max_holes=8, max_height=160//20, max_width=192//20,
                                 min_holes=5, fill_value=0, mask_fill_value=0, p=0.5),
-                # A.RandomResizedCrop(320, 384,scale=(0,7,1),p=0.25),
+                A.RandomSizedCrop((224,224),320, 384,p=0.25),
                 A.Cutout(10,10,p=0.25),
                 # A.Cutout(10,10,p=0.25),
                 ToTensorV2()], p=1.0),
@@ -117,9 +117,9 @@ class MRIDataModule(LightningDataModule):
         
         # load datasets only if they're not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
-            self.data_train = BuildDataset(train_df,True,transforms=data_transforms['train'],add_channel=True)
-            self.data_val = BuildDataset(valid_df,True,transforms=data_transforms['valid'],add_channel=True)
-            self.data_test = BuildDataset(test_df,True,transforms=data_transforms['valid'],add_channel=True)
+            self.data_train = BuildDataset(train_df,True,transforms=data_transforms['train'],add_channel=self.add_channel)
+            self.data_val = BuildDataset(valid_df,True,transforms=data_transforms['valid'],add_channel=self.add_channel)
+            self.data_test = BuildDataset(test_df,True,transforms=data_transforms['valid'],add_channel=self.add_channel)
             
             # dataset = ConcatDataset(datasets=[trainset, testset])
             # self.data_train, self.data_val, self.data_test = random_split(

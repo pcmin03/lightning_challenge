@@ -41,6 +41,7 @@ def train(config: DictConfig) -> Optional[float]:
             hydra.utils.get_original_cwd(), ckpt_path
         )
 
+
     # Init lightning datamodule
     log.info(f"Instantiating datamodule <{config.datamodule._target_}>")
     datamodule: LightningDataModule = hydra.utils.instantiate(config.datamodule)
@@ -49,6 +50,13 @@ def train(config: DictConfig) -> Optional[float]:
     log.info(f"Instantiating model <{config.model._target_}>")
     model: LightningModule = hydra.utils.instantiate(config.model)
 
+    ckpt_path = config.get("load_from_checkpoint")
+    if ckpt_path and not os.path.isabs(ckpt_path):
+        config.load_from_checkpoint = os.path.join(
+            hydra.utils.get_original_cwd(), ckpt_path
+        )
+        model = model.load_from_checkpoint(config.load_from_checkpoint)
+        
     # Init lightning callbacks
     callbacks: List[Callback] = []
     if "callbacks" in config:

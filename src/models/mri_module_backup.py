@@ -67,18 +67,14 @@ class MRIModule(LightningModule):
 
     def criterion(self,y_pred, y_true):
         bceloss = self.BCELoss(y_pred, y_true).mean(dim=(0,2,3))
-        class_weight = torch.as_tensor([1,1,0.6,1], device=torch.device('cuda'))
+        class_weight = torch.as_tensor([1,1,1], device=torch.device('cuda'))
         bceloss = bceloss * class_weight
 
         dice_stro = self.DiceLoss(y_pred[:,0], y_true[:,0]) * class_weight[0]
         dice_larg = self.DiceLoss(y_pred[:,1], y_true[:,1]) * class_weight[1]
         dice_smal = self.DiceLoss(y_pred[:,2], y_true[:,2]) * class_weight[2]
 
-        if self.hparams.configure.add_channel :
-            dice_over = self.DiceLoss(y_pred[:,3], y_true[:,3]) * class_weight[2] # over lappint channel
-            dice_score = (dice_stro + dice_larg + dice_smal+dice_over).mean()
-        else:
-            dice_score = (dice_stro + dice_larg + dice_smal).mean()
+        dice_score = (dice_stro + dice_larg + dice_smal).mean()
         loss =  0.5*dice_score + 0.5*bceloss.mean()
         
         return loss

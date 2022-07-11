@@ -25,12 +25,13 @@ def load_msk(path):
     
 
 class BuildDataset(Dataset):
-    def __init__(self, df, label=True, transforms=None):
+    def __init__(self, df, label=True, transforms=None,add_channel=True):
         self.df         = df
         self.label      = label
         self.img_paths  = df['image_path'].tolist()
         self.msk_paths  = df['mask_path'].tolist()
         self.transforms = transforms
+        self.add_channel = add_channel
         
     def __len__(self):
         return len(self.df)
@@ -43,6 +44,12 @@ class BuildDataset(Dataset):
         if self.label:
             msk_path = self.msk_paths[index]
             msk = load_msk(msk_path)
+
+            # make 4 channel 
+            if self.add_channel:
+                overlap_msk = (np.sum(msk,axis=2)>255)*255
+                msk = np.concatenate((msk,overlap_msk[...,None]),axis=2)
+            # print(msk.shape)
             if self.transforms:
                 data = self.transforms(image=img, mask=msk)
                 img  = data['image']

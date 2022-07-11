@@ -54,4 +54,5 @@ seed: 2022
 
 # default name for the experiment, determines logging folder path
 # (you can overwrite this name in experiment configs)
+load_from_checkpoint: null
 name: ${model.net.encoder_name}_${model.net.decoder}_${model.net.classes}test

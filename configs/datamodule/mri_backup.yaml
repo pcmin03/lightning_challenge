@@ -1,4 +1,4 @@
-_target_: src.datamodules.mri_datamodule.MRIDataModule
+_target_: src.datamodules.mri_datamodule_backup.MRIDataModule
 
 data_dir: ${data_dir} # data_dir is specified in config.yaml
 file_name : 25d_train_test_fold.csv
@@ -6,4 +6,3 @@ batch_size: 100
 fold: 0
 num_workers: 4
 pin_memory: False
-add_channel: True

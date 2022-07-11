@@ -10,30 +10,30 @@ class Seg(nn.Module):
         encoder_name: str = 'efficientnet-b0',
         encoder_weights: str = 'imagenet',
         classes: int = 3,
-        
+        output_class : int = 4,
     ):
         super().__init__()
         if decoder.lower() == 'unet':
             self.model = smp.Unet(encoder_name=encoder_name, encoder_weights=encoder_weights,
-                            in_channels=classes, classes=3, activation=None)
+                            in_channels=classes, classes=output_class, activation=None)
         elif decoder.lower() == 'fpn':
             self.model = smp.FPN(encoder_name=encoder_name, encoder_weights=encoder_weights,
-                            in_channels=classes, classes=3, activation=None)
+                            in_channels=classes, classes=output_class, activation=None)
         elif decoder.lower() == 'unetplusplus':
             self.model = smp.UnetPlusPlus(encoder_name=encoder_name, encoder_weights=encoder_weights,
-                                    in_channels=classes, classes=3, activation=None)
+                                    in_channels=classes, classes=output_class, activation=None)
         elif decoder.lower() == 'linknet':
             self.model = smp.Linknet(encoder_name=encoder_name, encoder_weights=encoder_weights,
-                                in_channels=classes, classes=3, activation=None)
+                                in_channels=classes, classes=output_class, activation=None)
         elif decoder.lower() == 'deeplabv3':
             self.model = smp.DeepLabV3(encoder_name=encoder_name, encoder_weights=encoder_weights,
-                                in_channels=classes, classes=3, activation=None)
+                                in_channels=classes, classes=output_class, activation=None)
         elif decoder.lower() == 'deeplabv3plus':
             self.model = smp.DeepLabV3Plus(encoder_name=encoder_name, encoder_weights=encoder_weights,
-                                    in_channels=classes, classes=3, activation=None)
+                                    in_channels=classes, classes=output_class, activation=None)
         elif decoder.lower() == 'pspnet':
             self.model = smp.PSPNet(encoder_name=encoder_name, encoder_weights=encoder_weights,
-                            in_channels=classes, classes=3, activation=None)
+                            in_channels=classes, classes=output_class, activation=None)
         
     def forward(self, x):
         
@@ -52,7 +52,7 @@ class Seg3d(nn.Module):
         self.model = nets.UNet(
                     spatial_dims=classes,
                     in_channels=1,
-                    out_channels=3,
+                    output_classs=3,
                     channels=(32, 64, 128, 256, 512),
                     strides=(2,2,1,1),#(2, 2, 2, 2),
                     kernel_size=3,

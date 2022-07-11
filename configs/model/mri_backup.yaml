@@ -1,4 +1,4 @@
-_target_: src.models.mri_module.MRIModule
+_target_: src.models.mri_module_backup.MRIModule
 configure:
   lr: 0.002
   weight_decay: 0.0005
@@ -7,7 +7,6 @@ configure:
   scheduler : CosineAnnealingLR
   T_max : 500
   min_lr : 1e-5
-  add_channel : ${datamodule.add_channel}
 
 
 net:
@@ -16,4 +15,4 @@ net:
   encoder_name: 'efficientnet-b0'
   encoder_weights: 'imagenet'
   classes: 3
-  output_class: 4
+  output_class : 3

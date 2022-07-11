@@ -279,8 +279,8 @@ class LogImagePredictions(Callback):
             # val_labels = val_labels.detach().cpu().numpy()
             # preds = preds.detach().cpu().numpy()            
             # n = np.random.randint(0, )
-        
-            mean_color = torch.sum(val_labels,axis=(1,2,3))
+
+            mean_color = torch.sum(val_labels[:,3,:,:],axis=(1,2))
             value,idx = torch.unique(mean_color,return_inverse=True)
 
             if len(value) > 1: 
@@ -295,20 +295,9 @@ class LogImagePredictions(Callback):
                 val_labels = torch.cat(list(val_labels[n]),dim=1)
                 preds = torch.cat(list(preds[n]),dim=1)
                 
-                # val_labels[n]
-                # preds[n]
+                plot_list = [val_imgs[:3],val_labels[:3],val_labels[3],preds[0],preds[1],preds[2],preds[3]]
                 experiment.log(
                     {
-                        f"Images/image_{experiment.name}": [wandb.Image(x, caption=f"image_{num}") for num,x in enumerate([val_imgs[:3],val_labels,preds[0],preds[1],preds[2]])]
+                        f"Images/image_{experiment.name}": [wandb.Image(x, caption=f"image_{num}") for num,x in enumerate(plot_list)]
                     }
                 )
-                # experiment.log(
-                #     {
-                #         f"Images/labels_{experiment.name}": [wandb.Image(x, caption=f"label_{num}") for num,x in enumerate(val_labels[n])]
-                #     }
-                # )
-                # experiment.log(
-                #     {
-                #         f"Images/predic_1_{experiment.name}": [wandb.Image(x*100, caption=f"predic_{num}") for num,x in enumerate(preds[n])]
-                #     }
-                # )
