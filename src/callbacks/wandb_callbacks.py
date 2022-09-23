@@ -272,30 +272,28 @@ class LogImagePredictions(Callback):
             # run the batch through the network
             val_imgs = val_imgs.to(device=pl_module.device)
             logits = pl_module(val_imgs)
-
             preds = torch.sigmoid(logits)
-
-            # val_imgs = val_imgs.detach().cpu().numpy()
-            # val_labels = val_labels.detach().cpu().numpy()
-            # preds = preds.detach().cpu().numpy()            
-            # n = np.random.randint(0, )
-
-            mean_color = torch.sum(val_labels[:,3,:,:],axis=(1,2))
+            # binary image
+            mean_color = torch.sum(val_labels)
+            
             value,idx = torch.unique(mean_color,return_inverse=True)
+            nclass = logits.shape[1]
 
             if len(value) > 1: 
                 val_imgs   = val_imgs[idx != 0]
                 val_labels = val_labels[idx != 0]
                 preds      = preds[idx != 0]
 
-                n = np.random.choice(val_imgs.shape[0], 5,replace=False)
-                b,c,w,h = val_imgs.shape
-
+                n = np.random.choice(val_imgs.shape[0], self.num_samples ,replace=False)
+                
                 val_imgs = torch.cat(list(val_imgs[n]),dim=1)
                 val_labels = torch.cat(list(val_labels[n]),dim=1)
                 preds = torch.cat(list(preds[n]),dim=1)
                 
-                plot_list = [val_imgs[:3],val_labels[:3],val_labels[3],preds[0],preds[1],preds[2],preds[3]]
+                cwise_labels = [val_labels[:,i] for i in range(nclass)]
+                cwise_preds = [preds[:,i] for i in range(nclass)]
+
+                plot_list = [val_imgs,cwise_labels,cwise_preds]
                 experiment.log(
                     {
                         f"Images/image_{experiment.name}": [wandb.Image(x, caption=f"image_{num}") for num,x in enumerate(plot_list)]

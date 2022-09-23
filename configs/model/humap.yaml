@@ -1,0 +1,18 @@
+_target_: src.models.humap_module.HUMAPModule
+configure:
+  lr: 0.002
+  weight_decay: 0.0005
+  warm_up_step : 3
+  optimizer : AdamW
+  scheduler : CosineAnnealingLR
+  T_max : 500
+  min_lr : 1e-5
+
+
+net:
+  _target_: src.models.components.segmentation.Seg
+  decoder : Unet
+  encoder_name: 'efficientnet-b4'
+  encoder_weights: 'imagenet'
+  classes: 3
+  output_class : 6

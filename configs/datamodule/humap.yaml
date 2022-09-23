@@ -1,0 +1,9 @@
+_target_: src.datamodules.humap_datamodule.HUMAPDataModule
+
+data_dir: ${data_dir} # data_dir is specified in config.yaml
+file_name : humap_train_test.csv
+batch_size: 64
+fold: 0
+num_workers: 4
+add_channel: True
+pin_memory : False

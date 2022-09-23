@@ -5,10 +5,9 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import ConcatDataset, DataLoader, Dataset, random_split
 from torchvision.transforms import transforms
 
-from .components.mri_dataset import BuildDataset
+from .components.humap_dataset import BuildDataset
 import numpy as np 
 
-from sklearn.model_selection import train_test_split
 from pathlib import Path
 
 import albumentations as A
@@ -17,7 +16,14 @@ from albumentations.pytorch.transforms import ToTensorV2,ToTensor
 import pandas as pd
 import cv2
 
-class MRIDataModule(LightningDataModule):
+from monai.data import CSVDataset
+from monai.data import DataLoader
+from monai.data import ImageReader
+
+def rgb2gray(rgb):
+    return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
+
+class HUMAPDataModule(LightningDataModule):
     """Example of LightningDataModule for MNIST dataset.
 
     A DataModule implements 5 key methods:
@@ -37,12 +43,12 @@ class MRIDataModule(LightningDataModule):
     def __init__(
         self,
         data_dir: str = "data/",
-        file_name : str = '25d_train_test_fold.csv',
+        file_name : str = 'humap_train_test.csv',
+        batch_size : int =64,
         fold: int = 0,
-        batch_size: int = 64,
-        num_workers: int = 0,
-        pin_memory: bool = False,
-        add_channel: bool = True
+        num_workers : int = 0,
+        add_channel: bool = True,
+        pin_memory: bool = False
     ):
         super().__init__()
 
@@ -65,15 +71,6 @@ class MRIDataModule(LightningDataModule):
     def num_classes(self) -> int:
         return 1
 
-    # def prepare_data(self):
-    #     """Download data if needed.
-
-    #     This method is called only from a single GPU.
-    #     Do not use it to assign state (self.x = y).
-    #     """
-    #     MNIST(self.hparams.data_dir, train=True, download=True)
-    #     MNIST(self.hparams.data_dir, train=False, download=True)
-
     def setup(self, stage: Optional[str] = None):
         """Load data. Set variables: `self.data_train`, `self.data_val`, `self.data_test`.
 
@@ -88,10 +85,12 @@ class MRIDataModule(LightningDataModule):
         train_df = not_test_df[not_test_df['fold'] != self.fold]
         valid_df = not_test_df[not_test_df['fold'] == self.fold]
         
+        mean = np.array([0.7720342, 0.74582646, 0.76392896])
+        std = np.array([0.24745085, 0.26182273, 0.25782376])
+
 
         data_transforms = {
             "train": A.Compose([
-                # A.Resize(320,320),
                 A.HorizontalFlip(p=0.5),
                 A.VerticalFlip(p=0.5),
 
@@ -103,14 +102,14 @@ class MRIDataModule(LightningDataModule):
                 ], p=0.5),
                 A.CoarseDropout(max_holes=8, max_height=160//20, max_width=192//20,
                                 min_holes=5, fill_value=0, mask_fill_value=0, p=0.5),
-                # A.RandomResizedCrop(320, 384,scale=(0,7,1),p=0.25),
-                A.Cutout(10,10,p=0.25),
+                                
                 # A.Cutout(10,10,p=0.25),
+                A.Normalize(mean,std),
                 ToTensorV2()], p=1.0),
                 
             
             "valid": A.Compose([
-                # A.Resize(320,320),
+                A.Normalize(mean,std),
                 ToTensorV2(),
                 ], p=1.0)
         }
@@ -121,13 +120,6 @@ class MRIDataModule(LightningDataModule):
             self.data_val = BuildDataset(valid_df,True,transforms=data_transforms['valid'],add_channel=True)
             self.data_test = BuildDataset(test_df,True,transforms=data_transforms['valid'],add_channel=True)
             
-            # dataset = ConcatDataset(datasets=[trainset, testset])
-            # self.data_train, self.data_val, self.data_test = random_split(
-            #     dataset=dataset,
-            #     lengths=self.hparams.train_val_test_split,
-            #     generator=torch.Generator().manual_seed(42),
-            # )
-
     def train_dataloader(self):
         return DataLoader(
             dataset=self.data_train,

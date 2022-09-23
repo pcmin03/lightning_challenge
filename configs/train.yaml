@@ -3,8 +3,8 @@
 # specify here default training configuration
 defaults:
   - _self_
-  - datamodule: mri.yaml
-  - model: mri.yaml
+  - datamodule: humap.yaml
+  - model: humap.yaml
   - callbacks: wandb.yaml
   - logger: wandb # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
   - trainer: default.yaml
@@ -55,4 +55,8 @@ seed: 2022
 # default name for the experiment, determines logging folder path
 # (you can overwrite this name in experiment configs)
 load_from_checkpoint: null
-name: ${model.net.encoder_name}_${model.net.decoder}_${model.net.classes}test
+name: ${model.net.encoder_name}_${model.net.decoder}_${model.net.output_class}
+
+
+
+
