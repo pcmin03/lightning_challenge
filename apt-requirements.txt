@@ -1,0 +1,22 @@
+# Ubuntu 20.04 학습 환경에서 사용되는 apt 패키지.
+
+# Essential packages.
+#libjemalloc1
+libjpeg-turbo8
+libpng16-16
+openssh-server
+sudo
+tzdata
+wget
+zsh
+
+# Additional packages.
+at
+atop
+git
+htop
+nano
+libgdcm-tools
+parallel
+rsync
+tmux

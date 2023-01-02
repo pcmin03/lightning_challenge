@@ -1,0 +1,8 @@
+services:
+  kaggle:
+    volumes:
+      - /team/team_blu3/:/team/team_blu3
+      - /localdata1:/localdata1
+      - /personal/personal_3/cmpark/:/personal/personal_3/cmpark/
+      - /home/cmpark:/home/cmpark
+      
