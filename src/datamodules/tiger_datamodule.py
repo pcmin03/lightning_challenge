@@ -111,14 +111,14 @@ class TIGERDataModule(LightningDataModule):
                                 A.RandomRotate90(),
                                 A.HorizontalFlip(),
                                 A.Normalize(mean = pretrained_means, 
-                                                        std = pretrained_stds),
+                                            std = pretrained_stds),
                                 ToTensorV2()
                             ])
 
         test_transforms = A.Compose([
                                 A.Resize(32,32),
                                 A.Normalize(mean = pretrained_means, 
-                                                        std = pretrained_stds),
+                                            std = pretrained_stds),
                                 ToTensorV2()
                             ])
         

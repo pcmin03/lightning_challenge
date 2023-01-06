@@ -3,19 +3,17 @@
 # specify here default training configuration
 defaults:
   - _self_
-  - datamodule: humap.yaml
-  - model: humap.yaml
+  - datamodule: rsna.yaml
+  - model: rsna.yaml
   - callbacks: wandb.yaml
   - logger: wandb # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
   - trainer: default.yaml
-  - log_dir: default.yaml
+  - paths: default.yaml
+  - hydra: default.yaml
 
   # experiment configs allow for version control of specific configurations
   # e.g. best hyperparameters for each combination of model and datamodule
   - experiment: null
-
-  # debugging config (enable through command line, e.g. `python train.py debug=default)
-  - debug: null
 
   # config for hyperparameter optimization
   - hparams_search: null
@@ -24,9 +22,8 @@ defaults:
   # it's optional since it doesn't need to exist and is excluded from version control
   - optional local: default.yaml
 
-  # enable color logging
-  - override hydra/hydra_logging: colorlog
-  - override hydra/job_logging: colorlog
+  # debugging config (enable through command line, e.g. `python train.py debug=default)
+  - debug: null
 
 # path to original working directory
 # hydra hijacks working directory by changing it to the new log directory
